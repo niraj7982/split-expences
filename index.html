@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SplitPro | Premium Expense Splitter</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <!-- PDF Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+
+    <!-- EmailJS SDK -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <script type="text/javascript">
+        (function () {
+            emailjs.init("YOUR_PUBLIC_KEY"); // Replace with your actual public key
+        })();
+    </script>
+</head>
+
+<body>
+
+    <!-- Authentication View -->
+    <div id="auth-view" class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <i class="ph-fill ph-wallet"></i>
+                <h1>SplitPro</h1>
+                <p>Manage shared expenses with ease</p>
+            </div>
+
+            <!-- Login Form -->
+            <form id="login-form" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <input type="email" id="login-email" required placeholder="Enter your email">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="login-password" required placeholder="Enter password">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Log In</button>
+                <div style="text-align: center; margin-top: 12px;">
+                    <a href="#" onclick="toggleAuthMode('forgot')"
+                        style="font-size: 13px; color: var(--text-secondary);">Forgot Password?</a>
+                </div>
+                <p class="auth-switch">
+                    Don't have an account? <a href="#" onclick="toggleAuthMode('signup')">Sign Up</a>
+                </p>
+            </form>
+
+            <!-- Signup Form -->
+            <form id="signup-form" style="display: none;" onsubmit="handleSignup(event)">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" id="signup-name" required placeholder="e.g. John Doe">
+                </div>
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="email" id="signup-email" required placeholder="name@example.com" style="flex:1;">
+                        <button type="button" class="btn btn-secondary btn-xs" onclick="sendOtp()"
+                            id="verify-btn">Verify</button>
+                    </div>
+                </div>
+
+                <!-- OTP Section (Hidden initially) -->
+                <div class="form-group" id="otp-group" style="display: none;">
+                    <label>Verification Code</label>
+                    <input type="text" id="signup-otp" placeholder="Enter 4-digit code">
+                    <small style="color: var(--text-secondary); display: block; margin-top: 4px;">Code sent to your
+                        email.</small>
+                    <button type="button" class="btn btn-primary btn-xs" style="margin-top: 8px; width: 100%;"
+                        onclick="verifyOtp()">Confirm Code</button>
+                </div>
+
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="signup-password" required placeholder="Create a password">
+                </div>
+
+                <button type="submit" class="btn btn-accent btn-block" id="signup-submit-btn" disabled
+                    style="opacity: 0.5; cursor: not-allowed;">Sign Up</button>
+                <p class="auth-switch">
+                    Already have an account? <a href="#" onclick="toggleAuthMode('login')">Log In</a>
+                </p>
+            </form>
+
+            <!-- Forgot Password Form -->
+            <form id="forgot-password-form" style="display: none;" onsubmit="handleResetPassword(event)">
+                <h3 style="margin-bottom: 16px; font-size: 18px;">Reset Password</h3>
+                <div class="form-group">
+                    <label>Registered Email</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="email" id="forgot-email" required placeholder="name@example.com" style="flex:1;">
+                        <button type="button" class="btn btn-secondary btn-xs" onclick="sendOtp('recovery')"
+                            id="forgot-verify-btn">Verify</button>
+                    </div>
+                </div>
+
+                <!-- OTP Section for Recovery -->
+                <div class="form-group" id="forgot-otp-group" style="display: none;">
+                    <label>Verification Code</label>
+                    <input type="text" id="forgot-otp" placeholder="Enter 4-digit code">
+                    <button type="button" class="btn btn-primary btn-xs" style="margin-top: 8px; width: 100%;"
+                        onclick="verifyOtp('recovery')">Confirm Code</button>
+                </div>
+
+                <div class="form-group" id="new-password-group" style="display: none;">
+                    <label>New Password</label>
+                    <input type="password" id="new-password" placeholder="Enter new password">
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-block" id="reset-submit-btn" disabled
+                    style="opacity: 0.5; cursor: not-allowed;">Reset Password</button>
+                <p class="auth-switch">
+                    <a href="#" onclick="toggleAuthMode('login')">Back to Login</a>
+                </p>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main App View (Protected) -->
+    <div id="app-view" style="display: none;">
+        <div class="app-container">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <div class="brand">
+                    <i class="ph-fill ph-wallet"></i>
+                    <h1>SplitPro</h1>
+                </div>
+
+                <nav class="nav-menu">
+                    <button class="nav-item active" data-tab="dashboard">
+                        <i class="ph ph-squares-four"></i>
+                        Dashboard
+                    </button>
+                    <button class="nav-item" data-tab="expenses">
+                        <i class="ph ph-list-dashes"></i>
+                        Expenses
+                    </button>
+                    <button class="nav-item" data-tab="friends">
+                        <i class="ph ph-users"></i>
+                        Friends
+                    </button>
+                </nav>
+
+                <div class="user-stats">
+                    <div class="stat-card">
+                        <span class="label">Total Expense</span>
+                        <span class="value" id="total-expense-display">₹0.00</span>
+                    </div>
+                </div>
+
+                <button class="btn btn-secondary" onclick="logout()" style="margin-top: 16px; width: 100%;">
+                    <i class="ph ph-sign-out"></i> Logout
+                </button>
+            </aside>
+
+            <!-- Main Content -->
+            <main class="main-content">
+                <header class="top-bar">
+                    <h2 id="page-title">Dashboard</h2>
+                    <div class="actions">
+                        <button class="btn btn-secondary" onclick="downloadReport()">
+                            <i class="ph ph-download"></i> Report
+                        </button>
+                        <button class="btn btn-secondary" onclick="openModal('friend-modal')">
+                            <i class="ph ph-user-plus"></i> Add Friend
+                        </button>
+                        <button class="btn btn-primary" onclick="openModal('expense-modal')">
+                            <i class="ph ph-plus"></i> Add Expense
+                        </button>
+                        <button class="btn btn-accent" onclick="triggerSimplification()">
+                            <i class="ph ph-lightning"></i> Simplify Debts
+                        </button>
+                        <button class="btn" onclick="markAllSettled()"
+                            style="background-color: var(--danger); color: white;">
+                            <i class="ph ph-trash"></i> Reset Data
+                        </button>
+                    </div>
+                </header>
+
+                <!-- Dashboard View -->
+                <div id="dashboard-view" class="view active">
+                    <div class="balance-grid">
+                        <div class="card balance-card">
+                            <h3>Total Group Owed</h3>
+                            <div class="amount positive" id="total-owed">₹0.00</div>
+                        </div>
+                        <div class="card balance-card">
+                            <h3>Total Group Debt</h3>
+                            <div class="amount negative" id="total-debt">₹0.00</div>
+                        </div>
+                        <div class="card balance-card">
+                            <h3>Net System</h3>
+                            <div class="amount neutral" id="net-balance">₹0.00</div>
+                        </div>
+                    </div>
+
+                    <div class="section-title">
+                        <h3>Settlement Plan</h3>
+                        <p>Optimized transactions to simplify debts</p>
+                    </div>
+                    <div class="settlement-list" id="settlement-list">
+                        <!-- Settlements injected here -->
+                        <div class="empty-state">
+                            <i class="ph ph-check-circle"></i>
+                            <p>All settled up!</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Expenses View -->
+                <div id="expenses-view" class="view">
+                    <div class="section-title">
+                        <h3>Recent Activity</h3>
+                    </div>
+                    <div class="expenses-list" id="expenses-list">
+                        <!-- Expenses injected here -->
+                        <div class="empty-state">
+                            <i class="ph ph-receipt"></i>
+                            <p>No expenses yet</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Friends View -->
+                <div id="friends-view" class="view">
+                    <div class="section-title">
+                        <h3>Your Friends</h3>
+                    </div>
+                    <div class="friends-grid" id="friends-grid">
+                        <!-- Friends injected here -->
+                    </div>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <!-- Add Friend Modal -->
+    <div class="modal-overlay" id="friend-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Add New Friend</h3>
+                <button class="close-btn" onclick="closeModal('friend-modal')"><i class="ph ph-x"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" id="friend-name-input" placeholder="Enter name (e.g., Alice)">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('friend-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="submitFriend()">Add Friend</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Expense Modal -->
+    <div class="modal-overlay" id="expense-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Add Expense</h3>
+                <button class="close-btn" onclick="closeModal('expense-modal')"><i class="ph ph-x"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Description</label>
+                    <input type="text" id="expense-desc" placeholder="What was this for?">
+                </div>
+                <div class="form-group">
+                    <label>Amount</label>
+                    <input type="number" id="expense-amount" placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <div style="display: flex; gap: 8px;">
+                        <select id="expense-category" style="flex: 1;" onchange="toggleCustomCategory()">
+                            <option value="General">General</option>
+                            <option value="Food">Food <i class="ph ph-pizza"></i></option>
+                            <option value="Transport">Transport</option>
+                            <option value="Entertainment">Entertainment</option>
+                            <option value="Utilities">Utilities</option>
+                            <option value="custom">Custom...</option>
+                        </select>
+                        <input type="text" id="custom-category-input" placeholder="Enter Category"
+                            style="display: none; flex: 1;">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Paid By</label>
+                    <select id="expense-payer">
+                        <!-- Options filled by JS -->
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <label style="margin-bottom: 0;">Split Details</label>
+                        <div class="toggle-container">
+                            <span id="split-type-label"
+                                style="font-size: 12px; color: var(--text-secondary); margin-right: 8px;">Equally</span>
+                            <button class="btn-xs btn-secondary" id="split-toggle-btn"
+                                onclick="toggleSplitType()">Switch to Unequal</button>
+                        </div>
+                    </div>
+                    <div class="multi-select" id="expense-split-users">
+                        <!-- Checkboxes filled by JS -->
+                    </div>
+                    <div id="split-validation-msg"
+                        style="color: var(--danger); font-size: 12px; margin-top: 4px; display: none;">
+                        Total split amount must match expense amount.
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('expense-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="submitExpense()">Add Expense</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
